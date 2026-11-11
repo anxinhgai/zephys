@@ -1,11 +1,12 @@
 name: probe
 on: [workflow_dispatch]
 jobs:
-  u:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo ubuntu-ok && uname -a
-  m:
-    runs-on: macos-14
-    steps:
-      - run: echo macos-ok && xcodebuild -version
+  a:
+    runs-on: macos-13
+    steps: [{run: "echo a"}]
+  b:
+    runs-on: macos-15
+    steps: [{run: "echo b"}]
+  c:
+    runs-on: macos-latest
+    steps: [{run: "echo c"}]
