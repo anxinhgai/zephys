@@ -1,0 +1,53 @@
+name: ipa
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: toolchain
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+
+      - name: generate
+        run: xcodegen generate
+
+      - name: build
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ZEPHYS.xcodeproj \
+            -scheme ZEPHYS \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath out \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee build.log | tail -n 60
+
+      - name: package
+        run: |
+          mkdir -p dist/Payload
+          cp -R out/Build/Products/Release-iphoneos/ZEPHYS.app dist/Payload/
+          cd dist
+          zip -qry ZEPHYS.ipa Payload
+          ls -l ZEPHYS.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZEPHYS-ipa
+          path: dist/ZEPHYS.ipa
+          if-no-files-found: error
+
+      - name: log on failure
+        if: failure()
+        run: grep -n "error:" build.log | head -40 || true
