@@ -225,6 +225,34 @@ final class S0: ObservableObject {
         nm = H0.sl(tag)
     }
 
+    func up(_ r: R0, _ us: [URL], _ pre: String) async {
+        bs = true
+        var n = 0
+        var bad: [String] = []
+        let pfx = pre.isEmpty ? "" : (pre.hasSuffix("/") ? pre : pre + "/")
+        for u in us {
+            var isD: ObjCBool = false
+            let ex = FileManager.default.fileExists(atPath: u.path, isDirectory: &isD)
+            if ex, isD.boolValue {
+                for (k, v) in H0.rf(u) {
+                    st(r, pfx + k, v)
+                    n += 1
+                }
+            } else if let d = await H0.pick(u) {
+                st(r, pfx + u.lastPathComponent, d)
+                n += 1
+            } else {
+                bad.append(u.lastPathComponent)
+            }
+        }
+        bs = false
+        if !bad.isEmpty {
+            er = "không đọc được: " + bad.joined(separator: ", ")
+        } else if n == 0 {
+            er = "không có file nào được thêm"
+        }
+    }
+
     func go() async {
         guard let d = dx else { return }
         bs = true

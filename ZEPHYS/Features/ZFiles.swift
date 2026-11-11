@@ -10,9 +10,11 @@ struct V3: View {
     @State private var nf = false
     @State private var nd = false
     @State private var up = false
+    @State private var sh2 = false
     @State private var rn: F0?
     @State private var buf = ""
     @State private var buf2 = ""
+    @State private var pf = "debs/"
 
     private var list: [F0] {
         (s.tr[r.key] ?? []).sorted { $0.p < $1.p }
@@ -57,7 +59,7 @@ struct V3: View {
                             buf2 = ""
                             nd = true
                         }
-                        GB(t: "upload") { up = true }
+                        GB(t: "upload", c: T0.acc) { sh2 = true }
                         Spacer()
                     }
                     .padding(.horizontal, 20)
@@ -123,18 +125,58 @@ struct V3: View {
                 rn = nil
             } onCancel: { rn = nil }
         }
-        .fileImporter(isPresented: $up, allowedContentTypes: [.item], allowsMultipleSelection: true) { res in
-            guard case let .success(urls) = res else { return }
-            Task {
-                for u in urls {
-                    let sc = u.startAccessingSecurityScopedResource()
-                    defer { if sc { u.stopAccessingSecurityScopedResource() } }
-                    guard let d = try? Data(contentsOf: u) else { continue }
-                    let base = (s.tr[r.key] ?? []).contains { $0.p.hasPrefix("debs/") } ? "debs/" : ""
-                    s.st(r, base + u.lastPathComponent, d)
-                }
+        .sheet(isPresented: $sh2) {
+            SH2(pf: $pf, hasDebs: list.contains { $0.p.hasPrefix("debs/") }) {
+                sh2 = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { up = true }
+            } onCancel: { sh2 = false }
+        }
+        .fileImporter(isPresented: $up,
+                      allowedContentTypes: [.item, .data, .folder, .zip, .archive],
+                      allowsMultipleSelection: true) { res in
+            switch res {
+            case let .success(urls):
+                Task { await s.up(r, urls, pf) }
+            case let .failure(e):
+                s.er = e.localizedDescription
             }
         }
+    }
+}
+
+struct SH2: View {
+    @Binding var pf: String
+    let hasDebs: Bool
+    let go: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            TX()
+            VStack(alignment: .leading, spacing: 15) {
+                Text("UPLOAD")
+                    .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                    .kerning(2.4)
+                    .foregroundStyle(T0.dim)
+                Text("chọn nhiều file / folder / zip bất kỳ loại nào — deb, dylib, ảnh, zip, xz, zst…")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(T0.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+                FD(p: "thư mục đích (để trống = gốc)", v: $pf, big: true)
+                HStack(spacing: 8) {
+                    GB(t: "root") { pf = "" }
+                    GB(t: "debs/") { pf = "debs/" }
+                    GB(t: "assets/") { pf = "assets/" }
+                    Spacer()
+                }
+                HStack(spacing: 9) {
+                    GB(t: "cancel", c: T0.dim) { onCancel() }
+                    PB(t: "choose") { go() }
+                }
+            }
+            .padding(22)
+        }
+        .presentationDetents([.height(310)])
     }
 }
 
@@ -146,7 +188,7 @@ struct FR: View {
         Button(action: a) {
             HStack(spacing: 12) {
                 Rectangle()
-                    .fill(f.ext == "deb" ? T0.wr : (f.bi ? T0.dim2 : T0.acc))
+                    .fill(f.ext == "deb" ? T0.wr : (H0.img(f.p) ? T0.ok : (f.bi ? T0.dim2 : T0.acc)))
                     .frame(width: 2.5, height: 26)
                     .clipShape(RoundedRectangle(cornerRadius: 2))
                 VStack(alignment: .leading, spacing: 3) {
@@ -193,40 +235,27 @@ struct V4: View {
     @State private var ld = true
     @State private var sv = false
 
+    private var isTxt: Bool { H0.tx(d ?? Data()) != nil }
+    private var isImg: Bool { H0.img(f.p) }
+
     var body: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 10) {
+            HStack(spacing: 9) {
                 GB(t: "back") { back() }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(f.nm)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 13.5, weight: .bold))
                         .foregroundStyle(T0.ink)
                         .lineLimit(1)
                     Text(f.p)
-                        .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .foregroundStyle(T0.dim)
                         .lineLimit(1)
                 }
-                Spacer()
-                if H0.tx(d ?? Data()) != nil || d == nil {
-                    GB(t: ed ? "cancel" : "edit", c: ed ? T0.dim : T0.acc) {
-                        if ed { txt = H0.tx(d ?? Data()) ?? "" }
-                        withAnimation(.easeInOut(duration: 0.22)) { ed.toggle() }
-                    }
-                }
-                if ed {
-                    GB(t: sv ? "saving" : "save", c: T0.ok) {
-                        sv = true
-                        Task {
-                            let ok = await s.sv(r, f.p, txt)
-                            sv = false
-                            if ok {
-                                d = Data(txt.utf8)
-                                withAnimation { ed = false }
-                            }
-                        }
-                    }
-                }
+                Spacer(minLength: 4)
+                Text(H0.hm(f.s))
+                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(T0.dim.opacity(0.7))
             }
             .padding(.horizontal, 20)
 
@@ -240,52 +269,90 @@ struct V4: View {
                     Spacer()
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
+                .padding(.top, 18)
                 Spacer()
-            } else if let dt = d, let t = H0.tx(dt) {
-                ScrollView {
-                    Text(t.isEmpty ? " " : t)
-                        .font(.system(size: 12.5, weight: .regular, design: .monospaced))
-                        .foregroundStyle(T0.ink)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.black.opacity(0.30))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(T0.ln, lineWidth: 1)
-                )
-                .padding(.horizontal, 20)
-                .overlay(alignment: .topTrailing) {
+            } else if let dt = d {
+                HStack(spacing: 7) {
+                    if isImg {
+                        BG(t: "image", c: T0.ok)
+                    } else if isTxt {
+                        BG(t: "text", c: T0.acc)
+                    } else {
+                        BG(t: "hex", c: T0.wr)
+                    }
+                    if isTxt {
+                        GB(t: ed ? "cancel" : "edit", c: ed ? T0.dim : T0.acc) {
+                            if ed { txt = H0.tx(dt) ?? "" }
+                            withAnimation(.easeInOut(duration: 0.22)) { ed.toggle() }
+                        }
+                    }
                     if ed {
-                        TextEditor(text: $txt)
+                        GB(t: sv ? "saving" : "save", c: T0.ok) {
+                            sv = true
+                            Task {
+                                let ok = await s.sv(r, f.p, txt)
+                                sv = false
+                                if ok {
+                                    d = Data(txt.utf8)
+                                    withAnimation { ed = false }
+                                }
+                            }
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+
+                if isImg {
+                    IM(d: dt)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.34)))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(T0.ln, lineWidth: 1))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 10)
+                } else if let t = H0.tx(dt) {
+                    ScrollView {
+                        Text(t.isEmpty ? " " : t)
                             .font(.system(size: 12.5, weight: .regular, design: .monospaced))
                             .foregroundStyle(T0.ink)
-                            .scrollContentBackground(.hidden)
-                            .padding(10)
-                            .background(Color.black.opacity(0.55))
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .padding(.horizontal, 20)
-                            .transition(.opacity)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(14)
                     }
+                    .scrollIndicators(.visible)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.30)))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(T0.ln, lineWidth: 1))
+                    .padding(.horizontal, 20)
+                    .overlay {
+                        if ed {
+                            TextEditor(text: $txt)
+                                .font(.system(size: 12.5, weight: .regular, design: .monospaced))
+                                .foregroundStyle(T0.ink)
+                                .scrollContentBackground(.hidden)
+                                .padding(10)
+                                .background(Color.black.opacity(0.62))
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .padding(.horizontal, 20)
+                                .transition(.opacity)
+                        }
+                    }
+                    .padding(.bottom, 10)
+                } else {
+                    HX(d: dt)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.34)))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(T0.ln, lineWidth: 1))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 10)
                 }
             } else {
                 CD {
                     VStack(alignment: .leading, spacing: 10) {
-                        SR(t: "binary", s: H0.hm(f.s))
+                        SR(t: "error", s: H0.hm(f.s))
                         HR()
-                        Text("không hiển thị nội dung nhị phân — sửa trực tiếp không hỗ trợ")
+                        Text("không tải được nội dung file — kiểm tra quyền token")
                             .font(T0.mono)
-                            .foregroundStyle(T0.dim)
-                        if f.ext == "deb" {
-                            Text("file deb: upload bản mới để thay thế")
-                                .font(T0.mono)
-                                .foregroundStyle(T0.wr)
-                        }
+                            .foregroundStyle(T0.wr)
                     }
                 }
                 .padding(.horizontal, 20)

@@ -34,6 +34,56 @@ enum H0 {
         return String(format: "%.1f MB", Double(n) / 1048576)
     }
 
+    static let ige: Set<String> = ["png", "jpg", "jpeg", "gif", "heic", "heif", "webp", "bmp", "tiff", "ico"]
+
+    static func img(_ p: String) -> Bool {
+        ige.contains((p as NSString).pathExtension.lowercased())
+    }
+
+    static func pick(_ u: URL) async -> Data? {
+        let sc = u.startAccessingSecurityScopedResource()
+        defer { if sc { u.stopAccessingSecurityScopedResource() } }
+        if let d = try? Data(contentsOf: u), !d.isEmpty { return d }
+        if let v = try? u.resourceValues(forKeys: [.isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]),
+           v.isUbiquitousItem == true {
+            try? FileManager.default.startDownloadingUbiquitousItem(at: u)
+            for _ in 0..<30 {
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                if let d = try? Data(contentsOf: u), !d.isEmpty { return d }
+            }
+        }
+        let t = FileManager.default.temporaryDirectory.appendingPathComponent("zp-pick-" + u.lastPathComponent)
+        try? FileManager.default.removeItem(at: t)
+        var e: NSError?
+        NSFileCoordinator().coordinate(readingItemAt: u, options: [], error: &e) { x in
+            try? FileManager.default.copyItem(at: x, to: t)
+        }
+        if let d = try? Data(contentsOf: t), !d.isEmpty {
+            try? FileManager.default.removeItem(at: t)
+            return d
+        }
+        return nil
+    }
+
+    static func rf(_ u: URL) -> [String: Data] {
+        let sc = u.startAccessingSecurityScopedResource()
+        defer { if sc { u.stopAccessingSecurityScopedResource() } }
+        var o: [String: Data] = [:]
+        let e = FileManager.default.enumerator(at: u, includingPropertiesForKeys: [.isDirectoryKey], options: [])
+        while let x = e?.nextObject() as? URL {
+            if x.lastPathComponent == ".git" || x.lastPathComponent == ".DS_Store" { continue }
+            var isD: ObjCBool = false
+            FileManager.default.fileExists(atPath: x.path, isDirectory: &isD)
+            if isD.boolValue { continue }
+            if let d = try? Data(contentsOf: x) {
+                let r = x.path.replacingOccurrences(of: u.path, with: "")
+                let p = String(r.dropFirst())
+                if !p.isEmpty { o[p] = d }
+            }
+        }
+        return o
+    }
+
     static func tx(_ d: Data) -> String? {
         if d.isEmpty { return "" }
         let k = d.prefix(4096)
