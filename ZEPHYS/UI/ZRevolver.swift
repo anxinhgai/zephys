@@ -44,9 +44,9 @@ struct FZ: Shape {
         let c = CGPoint(x: r.midX, y: r.midY)
         let n = 7
         for i in 0..<(n * 2) {
-            let a = Double(i) * .pi / Double(n)
-            let rad = (i % 2 == 0) ? r.width * 0.5 : r.width * 0.17
-            let pt = CGPoint(x: c.x + CGFloat(cos(a) * rad), y: c.y + CGFloat(sin(a) * rad))
+            let ang: CGFloat = CGFloat(i) * .pi / CGFloat(n)
+            let rad: CGFloat = (i % 2 == 0) ? r.width * 0.5 : r.width * 0.17
+            let pt = CGPoint(x: c.x + cos(ang) * rad, y: c.y + sin(ang) * rad)
             if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
         }
         p.closeSubpath()

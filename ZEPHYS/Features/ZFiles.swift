@@ -325,8 +325,7 @@ struct SH1: View {
             }
             .padding(22)
         }
-        .presentationDetents([.height(230)])
-        .presentationBackground(T0.bg)
+        .presentationDetents([.height(240)])
         .onAppear { fs = true }
     }
 }
