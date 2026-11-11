@@ -37,6 +37,7 @@ final class S0: ObservableObject {
     @Published var dx: DX?
     @Published var nm = ""
     @Published var tick = 0
+    @Published var inf: String?
 
     func b00() async {
         let t = K0.g()
@@ -223,6 +224,10 @@ final class S0: ObservableObject {
         if files.isEmpty { er = "no readable file found"; return }
         dx = DX(kd: H0.kd(files), fl: files, frm: tag)
         nm = H0.sl(tag)
+    }
+
+    func drop2(_ us: [URL]) {
+        for u in us { try? FileManager.default.removeItem(at: u) }
     }
 
     func up(_ r: R0, _ us: [URL], _ pre: String) async {

@@ -9,8 +9,10 @@ struct V3: View {
     @State private var vw: F0?
     @State private var nf = false
     @State private var nd = false
-    @State private var up = false
+    @State private var pkf = false
+    @State private var pkd = false
     @State private var sh2 = false
+    @State private var ibc = 0
     @State private var rn: F0?
     @State private var buf = ""
     @State private var buf2 = ""
@@ -18,6 +20,20 @@ struct V3: View {
 
     private var list: [F0] {
         (s.tr[r.key] ?? []).sorted { $0.p < $1.p }
+    }
+
+    private func later(_ f: @escaping () -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: f)
+    }
+
+    private func fromInbox() {
+        let u = H0.ibf()
+        if u.isEmpty { return }
+        Task {
+            await s.up(r, u, pf)
+            s.drop2(u)
+            ibc = H0.ibf().count
+        }
     }
 
     var body: some View {
@@ -60,6 +76,9 @@ struct V3: View {
                             nd = true
                         }
                         GB(t: "upload", c: T0.acc) { sh2 = true }
+                        if ibc > 0 {
+                            GB(t: "inbox \(ibc)", c: T0.ok) { fromInbox() }
+                        }
                         Spacer()
                     }
                     .padding(.horizontal, 20)
@@ -101,7 +120,10 @@ struct V3: View {
                 .transition(.opacity)
             }
         }
-        .task { await s.tree(r) }
+        .task {
+            await s.tree(r)
+            ibc = H0.ibf().count
+        }
         .sheet(isPresented: $nf) {
             SH1(t: "new file", p: "path/name.html", v: $buf) {
                 let n = buf.trimmingCharacters(in: .whitespaces)
@@ -126,19 +148,22 @@ struct V3: View {
             } onCancel: { rn = nil }
         }
         .sheet(isPresented: $sh2) {
-            SH2(pf: $pf, hasDebs: list.contains { $0.p.hasPrefix("debs/") }) {
-                sh2 = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { up = true }
-            } onCancel: { sh2 = false }
+            SH2(pf: $pf, ibc: ibc,
+                f1: { sh2 = false; later { pkf = true } },
+                f2: { sh2 = false; later { pkd = true } },
+                f3: { sh2 = false; later { fromInbox() } },
+                onCancel: { sh2 = false })
         }
-        .fileImporter(isPresented: $up,
-                      allowedContentTypes: [.item, .data, .folder, .zip, .archive],
-                      allowsMultipleSelection: true) { res in
-            switch res {
-            case let .success(urls):
-                Task { await s.up(r, urls, pf) }
-            case let .failure(e):
-                s.er = e.localizedDescription
+        .sheet(isPresented: $pkf) {
+            PKS(mul: true, dir: false) { urls in
+                pkf = false
+                if !urls.isEmpty { Task { await s.up(r, urls, pf) } }
+            }
+        }
+        .sheet(isPresented: $pkd) {
+            PKS(mul: false, dir: true) { urls in
+                pkd = false
+                if !urls.isEmpty { Task { await s.up(r, urls, pf) } }
             }
         }
     }
@@ -146,23 +171,21 @@ struct V3: View {
 
 struct SH2: View {
     @Binding var pf: String
-    let hasDebs: Bool
-    let go: () -> Void
+    let ibc: Int
+    let f1: () -> Void
+    let f2: () -> Void
+    let f3: () -> Void
     let onCancel: () -> Void
 
     var body: some View {
         ZStack {
             TX()
-            VStack(alignment: .leading, spacing: 15) {
+            VStack(alignment: .leading, spacing: 13) {
                 Text("UPLOAD")
                     .font(.system(size: 10.5, weight: .bold, design: .monospaced))
                     .kerning(2.4)
                     .foregroundStyle(T0.dim)
-                Text("chọn nhiều file / folder / zip bất kỳ loại nào — deb, dylib, ảnh, zip, xz, zst…")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(T0.dim)
-                    .fixedSize(horizontal: false, vertical: true)
-                FD(p: "thư mục đích (để trống = gốc)", v: $pf, big: true)
+                FD(p: "thư mục đích (trống = gốc)", v: $pf, big: true)
                 HStack(spacing: 8) {
                     GB(t: "root") { pf = "" }
                     GB(t: "debs/") { pf = "debs/" }
@@ -170,13 +193,22 @@ struct SH2: View {
                     Spacer()
                 }
                 HStack(spacing: 9) {
-                    GB(t: "cancel", c: T0.dim) { onCancel() }
-                    PB(t: "choose") { go() }
+                    PB(t: "files", on: true) { f1() }
+                    GB(t: "folder", c: T0.acc) { f2() }
                 }
+                HStack(spacing: 9) {
+                    GB(t: ibc > 0 ? "inbox (\(ibc))" : "inbox", c: ibc > 0 ? T0.ok : T0.dim) { f3() }
+                    Spacer()
+                    GB(t: "cancel", c: T0.dim) { onCancel() }
+                }
+                Text("mọi loại file: deb · dylib · zip · xz · zst · ảnh · txt. Hoặc thả file vào Files → On My iPhone → ZEPHYS rồi bấm INBOX.")
+                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(T0.dim.opacity(0.9))
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(22)
+            .padding(20)
         }
-        .presentationDetents([.height(310)])
+        .presentationDetents([.height(360)])
     }
 }
 

@@ -3,7 +3,8 @@ import UniformTypeIdentifiers
 
 struct V5: View {
     @StateObject private var s = S0.s
-    @State private var pick = false
+    @State private var pkf = false
+    @State private var pkd = false
     @State private var cp = false
 
     var body: some View {
@@ -19,14 +20,21 @@ struct V5: View {
             .padding(.bottom, 26)
         }
         .scrollIndicators(.visible)
-        .fileImporter(isPresented: $pick,
-                      allowedContentTypes: [.zip, .folder, .item],
-                      allowsMultipleSelection: true) { res in
-            if case let .success(urls) = res {
-                Task { await s.cnt2(urls) }
+        .sheet(isPresented: $pkf) {
+            PKS(mul: true, dir: false) { urls in
+                pkf = false
+                if !urls.isEmpty { Task { await s.cnt2(urls) } }
+            }
+        }
+        .sheet(isPresented: $pkd) {
+            PKS(mul: false, dir: true) { urls in
+                pkd = false
+                if !urls.isEmpty { Task { await s.cnt2(urls) } }
             }
         }
     }
+
+    private var ibc: Int { H0.ibf().count }
 
     private var src: some View {
         VStack(spacing: 12) {
@@ -45,7 +53,19 @@ struct V5: View {
                     }
                 }
             }
-            PB(t: s.bs ? "reading" : "choose source", on: !s.bs) { pick = true }
+            HStack(spacing: 9) {
+                PB(t: s.bs ? "reading" : "files / zip", on: !s.bs) { pkf = true }
+                GB(t: "folder", c: T0.acc) { pkd = true }
+            }
+            if ibc > 0 {
+                HStack(spacing: 9) {
+                    GB(t: "inbox (\(ibc))", c: T0.ok) {
+                        let u = H0.ibf()
+                        Task { await s.cnt2(u) }
+                    }
+                    Spacer()
+                }
+            }
         }
         .transition(.opacity)
     }

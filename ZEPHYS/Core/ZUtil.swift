@@ -40,6 +40,43 @@ enum H0 {
         ige.contains((p as NSString).pathExtension.lowercased())
     }
 
+    static func ib() -> URL {
+        let d = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        return d
+    }
+
+    static func ibf() -> [URL] {
+        var o: [URL] = []
+        let e = FileManager.default.enumerator(at: ib(), includingPropertiesForKeys: [.isDirectoryKey], options: [])
+        while let u = e?.nextObject() as? URL {
+            var d: ObjCBool = false
+            FileManager.default.fileExists(atPath: u.path, isDirectory: &d)
+            if !d.boolValue { o.append(u) }
+        }
+        return o.sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    static func take(_ u: URL) -> String? {
+        let sc = u.startAccessingSecurityScopedResource()
+        defer { if sc { u.stopAccessingSecurityScopedResource() } }
+        let d = ib()
+        var nm = u.lastPathComponent
+        var t = d.appendingPathComponent(nm)
+        var i = 1
+        while FileManager.default.fileExists(atPath: t.path) {
+            nm = "\(i)-\(u.lastPathComponent)"
+            t = d.appendingPathComponent(nm)
+            i += 1
+        }
+        do {
+            try FileManager.default.copyItem(at: u, to: t)
+            return nm
+        } catch {
+            return nil
+        }
+    }
+
     static func pick(_ u: URL) async -> Data? {
         let sc = u.startAccessingSecurityScopedResource()
         defer { if sc { u.stopAccessingSecurityScopedResource() } }

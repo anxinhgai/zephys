@@ -31,6 +31,13 @@ struct V9: View {
         .animation(.easeInOut(duration: 0.42), value: s.bt)
         .animation(.easeInOut(duration: 0.42), value: s.tk.isEmpty)
         .task { await s.b00() }
+        .onOpenURL { u in
+            if let n = H0.take(u) {
+                s.inf = "đã nhận " + n + " vào INBOX"
+            } else {
+                s.er = "không nhận được file từ app khác"
+            }
+        }
     }
 }
 
@@ -155,6 +162,31 @@ struct V1: View {
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: s.er)
+        .overlay(alignment: .bottom) {
+            if let i = s.inf {
+                HStack(spacing: 10) {
+                    Rectangle().fill(T0.ok).frame(width: 2, height: 20)
+                    Text(i)
+                        .font(T0.mono)
+                        .foregroundStyle(T0.ink)
+                        .lineLimit(2)
+                    Spacer()
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color(red: 0.07, green: 0.15, blue: 0.11)))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(T0.ok.opacity(0.3)))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 74)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.42, dampingFraction: 0.86), value: s.inf)
+        .task(id: s.inf) {
+            if s.inf != nil {
+                try? await Task.sleep(nanoseconds: 4_500_000_000)
+                s.inf = nil
+            }
+        }
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 75_000_000_000)
