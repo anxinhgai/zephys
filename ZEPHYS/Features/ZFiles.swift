@@ -75,7 +75,7 @@ struct V3: View {
                                         rn = f
                                     }
                                     Button("delete", role: .destructive) {
-                                        Task { await s.rn(r, f.p, f.p + ".zpdel") }
+                                        s.st(r, f.p, nil)
                                     }
                                 }
                             }

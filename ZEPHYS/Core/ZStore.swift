@@ -178,7 +178,7 @@ final class S0: ObservableObject {
         defer { bs = false }
         for x in hit {
             guard let d = await rd(r, x.p) else { continue }
-            let np = hit.count == 1 ? t : t + String(x.p.dropFirst(f.count))
+            let np = x.p == f ? t : t + String(x.p.dropFirst(f.count))
             st(r, np, d)
             st(r, x.p, nil)
         }

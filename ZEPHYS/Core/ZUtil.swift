@@ -80,7 +80,7 @@ enum H0 {
     static func rd(_ s: URL) -> [String: Data] {
         var o: [String: Data] = [:]
         var total = 0
-        let e = FileManager.default.enumerator(at: s, includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey], options: [.skipsHiddenFiles])
+        let e = FileManager.default.enumerator(at: s, includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey], options: [])
         while let u = e?.nextObject() as? URL {
             let v = try? u.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey])
             if v?.isDirectory == true { continue }
@@ -90,7 +90,9 @@ enum H0 {
             guard let d = try? Data(contentsOf: u) else { continue }
             let r = u.path.replacingOccurrences(of: s.path, with: "")
             let p = String(r.dropFirst())
-            if p.isEmpty || p.hasPrefix(".") { continue }
+            if p.isEmpty || p.hasPrefix(".git/") || p == ".git" { continue }
+            if (p as NSString).lastPathComponent == ".DS_Store" { continue }
+            if p.contains("__MACOSX") { continue }
             o[p] = d
             total += n
         }
