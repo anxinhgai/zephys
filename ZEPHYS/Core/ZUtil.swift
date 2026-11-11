@@ -62,8 +62,9 @@ enum H0 {
     }
 
     static func cp(_ s: URL, _ t: URL) throws {
-        let e = FileManager.default.enumerator(at: s, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
+        let e = FileManager.default.enumerator(at: s, includingPropertiesForKeys: [.isDirectoryKey], options: [])
         while let u = e?.nextObject() as? URL {
+            if u.lastPathComponent == ".git" { continue }
             let r = u.path.replacingOccurrences(of: s.path, with: "")
             let p = t.appendingPathComponent(String(r.dropFirst()))
             let d = (try? u.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false

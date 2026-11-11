@@ -2,12 +2,13 @@
 
 Ứng dụng iOS (SwiftUI) để đăng website / APT repo lên GitHub Pages bằng token, quản lý file trực tiếp trên repo.
 
-## IPA
+## Tải IPA
 
-Build tự động bằng GitHub Actions (macos-14, Xcode mới nhất):
+- Link trực tiếp (luôn là bản mới nhất):
+  **https://github.com/anxinhgai/zephys/releases/latest/download/ZEPHYS.ipa**
+- Hoặc tab **Actions** → workflow **ipa** → run mới nhất → artifact **ZEPHYS-ipa**.
 
-1. Mở tab **Actions** → workflow **ipa** → run mới nhất.
-2. Tải artifact **ZEPHYS-ipa** → giải nén được `ZEPHYS.ipa`.
+Build chạy tự động bằng GitHub Actions (`macos-15` + Xcode mới nhất, XcodeGen sinh project, SPM resolve ZIPFoundation, `xcodebuild` Release cho `iphoneos` rồi đóng gói `Payload/` thành ipa).
 
 IPA là **unsigned** (không có chứng chỉ Apple). Cách cài:
 
