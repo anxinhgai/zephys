@@ -22,7 +22,8 @@ IPA là **unsigned** (không có chứng chỉ Apple). Cách cài:
 
 1. Mở app → dán GitHub token vào ô, bấm **AUTHORIZE**. Token cần scope `repo` + `workflow` + `pages` (classic PAT). Token lưu trong Keychain, không gửi đi đâu ngoài `api.github.com`.
 2. Tab **REPO** / **WEB**: danh sách repo của bạn, app tự phân loại (có file `.deb` hoặc `Packages` → repo, có `index.html` → web). Bấm 1 dòng để mở cây file; bấm 1 file để xem text/code, bấm **EDIT** để sửa và **SAVE** để commit.
-3. Trong cây file: **NEW FILE**, **FOLDER**, **UPLOAD** (deb/ảnh/tài liệu), giữ 1 dòng để **rename / delete**; các thay đổi được xếp hàng chờ, bấm **UPDATE** để commit một lần.
+3. Trong cây file: **NEW FILE**, **FOLDER**, **UPLOAD** (deb/ảnh/tài liệu); nút **⋮** trên mỗi file mở menu: **code editor**, **hex editor**, **xem ảnh**, **nghe âm thanh** (mp3/m4a/wav/caf/aac), copy path, copy raw link, xuất file (share), lưu về máy (INBOX), rename, xoá. Code editor mở được **mọi đuôi file trừ file ảnh**; các thay đổi được xếp hàng chờ, bấm **UPDATE** để commit một lần. Mọi thao tác lưu / update / upload đều hiện **thông báo** ở đáy màn hình.
+   - Ô tìm file trong repo, nút **RELOAD**, kéo xuống để refresh, tab **NEW** tạo repo mới nhanh.
 4. Tab **PUSH**: chọn zip / folder / file → app giải nén, tự nhận dạng web hay repo → đặt tên URL (sửa được cả lúc đang chạy) → **PUBLISH**. App tạo repo, upload toàn bộ file, bật GitHub Pages và trả về link.
    - Nếu folder có file `.deb` mà chưa có `Packages`, app tự sinh `Packages` (flat repo) từ tên file deb.
 

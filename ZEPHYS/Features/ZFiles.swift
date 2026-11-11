@@ -170,6 +170,20 @@ struct V3: View {
                                             s.inf = "đã copy link raw của \(f.nm)"
                                         }
                                         Button("xuất file (share)") { export(f) }
+                                        Button("lưu về máy (inbox)") {
+                                            Task {
+                                                guard let dd = await s.rd(r, f.p) else {
+                                                    s.er = "không tải được file để lưu"
+                                                    return
+                                                }
+                                                if let n = H0.save(dd, f.nm) {
+                                                    s.inf = "đã lưu \(n) vào ZEPHYS/INBOX"
+                                                    ibc = H0.ibf().count
+                                                } else {
+                                                    s.er = "không ghi được file"
+                                                }
+                                            }
+                                        }
                                         Button("rename") {
                                             buf = f.nm
                                             rn = f

@@ -247,6 +247,8 @@ struct V2: View {
     let k: Int
     @State private var open: R0?
     @State private var q = ""
+    @State private var nr = false
+    @State private var buf = ""
 
     private var src: [R0] {
         let a = k == 2 ? s.wb : s.rp
@@ -267,6 +269,12 @@ struct V2: View {
                 VStack(spacing: 12) {
                     HStack(spacing: 10) {
                         FD(p: k == 2 ? "search site" : "search repository", v: $q)
+                        if k == 1 {
+                            GB(t: "new", c: T0.acc) {
+                                buf = ""
+                                nr = true
+                            }
+                        }
                         BG(t: k == 2 ? "web" : "repo", c: k == 2 ? T0.ok : T0.acc)
                     }
                     .padding(.horizontal, 20)
@@ -295,6 +303,13 @@ struct V2: View {
                 }
                 .transition(.opacity)
             }
+        }
+        .sheet(isPresented: $nr) {
+            SH1(t: "new repo", p: "tên repo", v: $buf) {
+                let n = H0.sl(buf.trimmingCharacters(in: .whitespaces))
+                if !n.isEmpty, !s.bs { Task { await s.mk2(n, "ZEPHYS repository") } }
+                nr = false
+            } onCancel: { nr = false }
         }
     }
 }

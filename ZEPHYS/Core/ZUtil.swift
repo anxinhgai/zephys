@@ -63,6 +63,20 @@ enum H0 {
         return o.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
+    static func save(_ d: Data, _ nm: String) -> String? {
+        let base = (nm as NSString).deletingPathExtension
+        let ext = (nm as NSString).pathExtension
+        var name = nm
+        var i = 2
+        while FileManager.default.fileExists(atPath: ib().appendingPathComponent(name).path) {
+            name = ext.isEmpty ? "\(base)-\(i)" : "\(base)-\(i).\(ext)"
+            i += 1
+        }
+        let u = ib().appendingPathComponent(name)
+        do { try d.write(to: u) } catch { return nil }
+        return name
+    }
+
     static func take(_ u: URL) -> String? {
         let sc = u.startAccessingSecurityScopedResource()
         defer { if sc { u.stopAccessingSecurityScopedResource() } }

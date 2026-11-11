@@ -160,6 +160,21 @@ final class S0: ObservableObject {
         }
     }
 
+    func mk2(_ n: String, _ ds: String) async -> Bool {
+        bs = true
+        defer { bs = false }
+        er = nil
+        do {
+            let r = try await N0.s.mk(n, ds)
+            inf = "đã tạo repo \(r.full)"
+            await load()
+            return true
+        } catch {
+            er = (error as? GE)?.m ?? error.localizedDescription
+            return false
+        }
+    }
+
     func sv(_ r: R0, _ p: String, _ t: String) async -> Bool {
         bs = true
         defer { bs = false }
