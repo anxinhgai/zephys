@@ -1,5 +1,17 @@
 import SwiftUI
-import UniformTypeIdentifiers
+
+enum MO: String, Identifiable {
+    case image, code, hex, audio
+    var id: String { rawValue }
+    var lb: String {
+        switch self {
+        case .image: return "ảnh"
+        case .code: return "code"
+        case .hex: return "hex"
+        case .audio: return "audio"
+        }
+    }
+}
 
 struct V3: View {
     @StateObject private var s = S0.s
@@ -7,6 +19,7 @@ struct V3: View {
     let back: () -> Void
 
     @State private var vw: F0?
+    @State private var vm: MO = .code
     @State private var nf = false
     @State private var nd = false
     @State private var pkf = false
@@ -17,13 +30,47 @@ struct V3: View {
     @State private var buf = ""
     @State private var buf2 = ""
     @State private var pf = "debs/"
+    @State private var q = ""
+    @State private var ex: EXI?
 
     private var list: [F0] {
-        (s.tr[r.key] ?? []).sorted { $0.p < $1.p }
+        let a = (s.tr[r.key] ?? []).sorted { $0.p < $1.p }
+        if q.isEmpty { return a }
+        return a.filter { $0.p.lowercased().contains(q.lowercased()) }
     }
 
     private func later(_ f: @escaping () -> Void) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: f)
+    }
+
+    private func def(_ f: F0) -> MO {
+        if H0.img(f.p) { return .image }
+        if H0.aud(f.p) { return .audio }
+        if f.bi { return .hex }
+        return .code
+    }
+
+    private func open(_ f: F0, _ m: MO) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        vm = m
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) { vw = f }
+    }
+
+    private func export(_ f: F0) {
+        Task {
+            guard let dd = await s.rd(r, f.p) else {
+                s.er = "không tải được file để xuất"
+                return
+            }
+            let u = FileManager.default.temporaryDirectory.appendingPathComponent(f.nm)
+            try? FileManager.default.removeItem(at: u)
+            do {
+                try dd.write(to: u)
+                ex = EXI(u: u)
+            } catch {
+                s.er = "không ghi được file tạm"
+            }
+        }
     }
 
     private func fromInbox() {
@@ -39,14 +86,14 @@ struct V3: View {
     var body: some View {
         ZStack {
             if let v = vw {
-                V4(r: r, f: v) {
+                V4(r: r, f: v, ini: vm) {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) { vw = nil }
                 }
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing).combined(with: .opacity),
                     removal: .move(edge: .trailing).combined(with: .opacity)))
             } else {
-                VStack(spacing: 12) {
+                VStack(spacing: 11) {
                     HStack(spacing: 10) {
                         GB(t: "back") { back() }
                         VStack(alignment: .leading, spacing: 3) {
@@ -60,6 +107,14 @@ struct V3: View {
                                 .foregroundStyle(T0.dim)
                         }
                         Spacer()
+                        GB(t: "reload", c: T0.dim) {
+                            Task { await s.tree(r, true) }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+
+                    HStack(spacing: 10) {
+                        FD(p: "tìm file trong repo", v: $q)
                         if s.cnt(r) > 0 {
                             BG(t: "\(s.cnt(r)) staged", c: T0.wr)
                         }
@@ -86,25 +141,62 @@ struct V3: View {
                     ScrollView {
                         LazyVStack(spacing: 8) {
                             ForEach(list) { f in
-                                FR(f: f) {
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) { vw = f }
-                                }
-                                .contextMenu {
-                                    Button("rename") {
-                                        buf = f.nm
-                                        rn = f
+                                HStack(spacing: 0) {
+                                    Button {
+                                        open(f, def(f))
+                                    } label: {
+                                        FR(f: f, staged: s.ch[r.key]?[f.p] != nil)
+                                            .contentShape(Rectangle())
                                     }
-                                    Button("delete", role: .destructive) {
-                                        s.st(r, f.p, nil)
+                                    .buttonStyle(PS())
+
+                                    Menu {
+                                        Button("code editor") { open(f, .code) }
+                                        Button("hex editor") { open(f, .hex) }
+                                        if H0.img(f.p) {
+                                            Button("xem ảnh") { open(f, .image) }
+                                        }
+                                        if H0.aud(f.p) {
+                                            Button("nghe âm thanh") { open(f, .audio) }
+                                        }
+                                        Divider()
+                                        Button("copy path") {
+                                            UIPasteboard.general.string = f.p
+                                            s.inf = "đã copy path · \(f.p)"
+                                        }
+                                        Button("copy raw link") {
+                                            UIPasteboard.general.string =
+                                                "https://raw.githubusercontent.com/\(r.o)/\(r.n)/\(r.br)/\(f.p)"
+                                            s.inf = "đã copy link raw của \(f.nm)"
+                                        }
+                                        Button("xuất file (share)") { export(f) }
+                                        Button("rename") {
+                                            buf = f.nm
+                                            rn = f
+                                        }
+                                        Button("xoá file", role: .destructive) {
+                                            s.st(r, f.p, nil)
+                                            s.inf = "đã đánh dấu xoá \(f.nm) · bấm UPDATE"
+                                        }
+                                    } label: {
+                                        D3()
                                     }
+                                    .padding(.trailing, 9)
                                 }
+                                .background(
+                                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                        .fill(Color.white.opacity(0.034)))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                        .stroke(T0.ln, lineWidth: 1))
                             }
                         }
                         .padding(.horizontal, 20)
                         .padding(.bottom, 12)
                     }
                     .scrollIndicators(.visible)
+                    .scrollDismissesKeyboard(.immediately)
+                    .refreshable { await s.tree(r, true) }
 
                     HStack(spacing: 10) {
                         PB(t: s.bs ? "updating" : "update", on: s.cnt(r) > 0 && !s.bs) {
@@ -124,17 +216,27 @@ struct V3: View {
             await s.tree(r)
             ibc = H0.ibf().count
         }
+        .sheet(item: $ex) { e in
+            SC(u: e.u)
+        }
         .sheet(isPresented: $nf) {
             SH1(t: "new file", p: "path/name.html", v: $buf) {
                 let n = buf.trimmingCharacters(in: .whitespaces)
-                if !n.isEmpty { s.st(r, n, Data("".utf8)) }
+                if !n.isEmpty {
+                    s.st(r, n, Data("".utf8))
+                    s.inf = "đã tạo \(n) · bấm UPDATE để push"
+                }
                 nf = false
             } onCancel: { nf = false }
         }
         .sheet(isPresented: $nd) {
             SH1(t: "new folder", p: "assets", v: $buf2) {
-                let n = buf2.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                if !n.isEmpty { s.st(r, n + "/.gitkeep", Data()) }
+                let n = buf2.trimmingCharacters(in: .whitespaces)
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                if !n.isEmpty {
+                    s.st(r, n + "/.gitkeep", Data())
+                    s.inf = "đã tạo thư mục \(n) · bấm UPDATE để push"
+                }
                 nd = false
             } onCancel: { nd = false }
         }
@@ -214,44 +316,38 @@ struct SH2: View {
 
 struct FR: View {
     let f: F0
-    let a: () -> Void
+    var staged = false
 
     var body: some View {
-        Button(action: a) {
-            HStack(spacing: 12) {
-                Rectangle()
-                    .fill(f.ext == "deb" ? T0.wr : (H0.img(f.p) ? T0.ok : (f.bi ? T0.dim2 : T0.acc)))
-                    .frame(width: 2.5, height: 26)
-                    .clipShape(RoundedRectangle(cornerRadius: 2))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(f.nm)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(T0.ink)
-                        .lineLimit(1)
+        HStack(spacing: 11) {
+            Rectangle()
+                .fill(staged ? T0.wr : (f.ext == "deb" ? T0.wr :
+                        (H0.img(f.p) ? T0.ok : (H0.aud(f.p) ? T0.acc : (f.bi ? T0.dim2 : T0.acc)))))
+                .frame(width: 2.5, height: 26)
+                .clipShape(RoundedRectangle(cornerRadius: 2))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(f.nm)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(T0.ink)
+                    .lineLimit(1)
+                HStack(spacing: 6) {
                     if !f.dir.isEmpty {
                         Text(f.dir)
                             .font(.system(size: 9.5, weight: .medium, design: .monospaced))
                             .foregroundStyle(T0.dim.opacity(0.85))
                             .lineLimit(1)
                     }
+                    if staged { BG(t: "staged", c: T0.wr) }
                 }
-                Spacer(minLength: 6)
-                Text(H0.hm(f.s))
-                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                    .foregroundStyle(T0.dim.opacity(0.7))
             }
-            .padding(.horizontal, 13)
-            .padding(.vertical, 11)
-            .background(
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(Color.white.opacity(0.034))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .stroke(T0.ln, lineWidth: 1)
-            )
+            Spacer(minLength: 6)
+            Text(H0.hm(f.s))
+                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                .foregroundStyle(T0.dim.opacity(0.7))
         }
-        .buttonStyle(PS())
+        .padding(.leading, 13)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -259,6 +355,7 @@ struct V4: View {
     @StateObject private var s = S0.s
     let r: R0
     let f: F0
+    let ini: MO
     let back: () -> Void
 
     @State private var d: Data?
@@ -266,12 +363,53 @@ struct V4: View {
     @State private var ed = false
     @State private var ld = true
     @State private var sv = false
+    @State private var md: MO = .code
+    @State private var ex: EXI?
 
-    private var isTxt: Bool { H0.tx(d ?? Data()) != nil }
-    private var isImg: Bool { H0.img(f.p) }
+    private var code: String {
+        guard let dd = d else { return "" }
+        return H0.tx(dd) ?? String(decoding: dd, as: UTF8.self)
+    }
+
+    private var modes: [MO] {
+        var o: [MO] = []
+        if H0.img(f.p) { o.append(.image) }
+        if H0.aud(f.p) { o.append(.audio) }
+        if !H0.img(f.p) { o.append(.code) }
+        o.append(.hex)
+        return o
+    }
+
+    private func share() {
+        guard let dd = d else { return }
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent(f.nm)
+        try? FileManager.default.removeItem(at: u)
+        do {
+            try dd.write(to: u)
+            ex = EXI(u: u)
+        } catch {
+            s.er = "không ghi được file tạm"
+        }
+    }
+
+    private func save() {
+        sv = true
+        let t = txt
+        Task {
+            let ok = await s.sv(r, f.p, t)
+            sv = false
+            if ok {
+                d = Data(t.utf8)
+                withAnimation(.easeInOut(duration: 0.2)) { ed = false }
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            } else {
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+            }
+        }
+    }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 11) {
             HStack(spacing: 9) {
                 GB(t: "back") { back() }
                 VStack(alignment: .leading, spacing: 3) {
@@ -285,9 +423,7 @@ struct V4: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 4)
-                Text(H0.hm(f.s))
-                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                    .foregroundStyle(T0.dim.opacity(0.7))
+                if !ld { GB(t: "share", c: T0.acc) { share() } }
             }
             .padding(.horizontal, 20)
 
@@ -303,80 +439,65 @@ struct V4: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 18)
                 Spacer()
-            } else if let dt = d {
-                HStack(spacing: 7) {
-                    if isImg {
-                        BG(t: "image", c: T0.ok)
-                    } else if isTxt {
-                        BG(t: "text", c: T0.acc)
-                    } else {
-                        BG(t: "hex", c: T0.wr)
-                    }
-                    if isTxt {
-                        GB(t: ed ? "cancel" : "edit", c: ed ? T0.dim : T0.acc) {
-                            if ed { txt = H0.tx(dt) ?? "" }
-                            withAnimation(.easeInOut(duration: 0.22)) { ed.toggle() }
-                        }
-                    }
-                    if ed {
-                        GB(t: sv ? "saving" : "save", c: T0.ok) {
-                            sv = true
-                            Task {
-                                let ok = await s.sv(r, f.p, txt)
-                                sv = false
-                                if ok {
-                                    d = Data(txt.utf8)
-                                    withAnimation { ed = false }
-                                }
+            } else if d != nil {
+                HStack(spacing: 6) {
+                    ForEach(modes) { m in
+                        MC(t: m.lb, on: md == m) {
+                            UISelectionFeedbackGenerator().selectionChanged()
+                            if ed { txt = code }
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                md = m
+                                ed = false
                             }
                         }
                     }
-                    Spacer()
+                    Spacer(minLength: 2)
+                    if md == .code && !H0.img(f.p) {
+                        GB(t: ed ? "hủy sửa" : "edit", c: ed ? T0.dim : T0.acc) {
+                            if ed { txt = code }
+                            withAnimation(.easeInOut(duration: 0.22)) { ed.toggle() }
+                        }
+                    }
                 }
                 .padding(.horizontal, 20)
 
-                if isImg {
-                    IM(d: dt)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.34)))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(T0.ln, lineWidth: 1))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 10)
-                } else if let t = H0.tx(dt) {
-                    ScrollView {
-                        Text(t.isEmpty ? " " : t)
-                            .font(.system(size: 12.5, weight: .regular, design: .monospaced))
-                            .foregroundStyle(T0.ink)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(14)
-                    }
-                    .scrollIndicators(.visible)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.30)))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(T0.ln, lineWidth: 1))
-                    .padding(.horizontal, 20)
-                    .overlay {
-                        if ed {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color(red: 0.024, green: 0.030, blue: 0.041))
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(T0.ln, lineWidth: 1)
+
+                    if let dd = d {
+                        if md == .image {
+                            IM(d: dd)
+                        } else if md == .audio {
+                            AU(d: dd, ext: f.ext)
+                        } else if md == .hex {
+                            HX(d: dd)
+                        } else if ed {
                             TextEditor(text: $txt)
                                 .font(.system(size: 12.5, weight: .regular, design: .monospaced))
                                 .foregroundStyle(T0.ink)
                                 .scrollContentBackground(.hidden)
-                                .padding(10)
-                                .background(Color.black.opacity(0.62))
-                                .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .padding(.horizontal, 20)
-                                .transition(.opacity)
+                                .background(Color(red: 0.024, green: 0.030, blue: 0.041))
+                                .padding(8)
+                        } else {
+                            ScrollView {
+                                Text(code.isEmpty ? " " : code)
+                                    .font(.system(size: 12.5, weight: .regular, design: .monospaced))
+                                    .foregroundStyle(T0.ink)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(13)
+                            }
+                            .scrollIndicators(.visible)
+                            .scrollDismissesKeyboard(.immediately)
                         }
                     }
-                    .padding(.bottom, 10)
-                } else {
-                    HX(d: dt)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.34)))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(T0.ln, lineWidth: 1))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 10)
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .padding(.horizontal, 20)
+                .padding(.bottom, 6)
             } else {
                 CD {
                     VStack(alignment: .leading, spacing: 10) {
@@ -391,9 +512,29 @@ struct V4: View {
                 Spacer()
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            if ed {
+                HStack(spacing: 9) {
+                    GB(t: "cancel", c: T0.dim) {
+                        txt = code
+                        withAnimation(.easeInOut(duration: 0.2)) { ed = false }
+                    }
+                    PB(t: sv ? "saving" : "save code", on: !sv) { save() }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+                .background(T0.bg.opacity(0.97))
+            }
+        }
+        .sheet(item: $ex) { e in
+            SC(u: e.u)
+        }
         .task {
-            d = await s.rd(r, f.p)
-            txt = H0.tx(d ?? Data()) ?? ""
+            let dd = await s.rd(r, f.p)
+            d = dd
+            txt = (dd.flatMap { H0.tx($0) }) ?? dd.map { String(decoding: $0, as: UTF8.self) } ?? ""
+            md = modes.contains(ini) ? ini : (modes.first ?? .code)
             withAnimation(.easeOut(duration: 0.28)) { ld = false }
         }
     }

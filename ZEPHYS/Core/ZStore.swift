@@ -142,14 +142,16 @@ final class S0: ObservableObject {
 
     func push(_ r: R0) async -> Bool {
         let m = ch[r.key] ?? [:]
-        if m.isEmpty, er == nil { return true }
+        if m.isEmpty { inf = "không có thay đổi nào để cập nhật"; return true }
         bs = true
         defer { bs = false }
+        er = nil
         do {
             let ops = m.values.map { ($0.p, $0.d) }.sorted { $0.0 < $1.0 }
             try await N0.s.cm(r.o, r.n, r.br, "ZEPHYS update", ops)
             ch[r.key] = [:]
             await tree(r, true)
+            inf = "đã cập nhật \(r.n) · \(ops.count) file lên github"
             await load()
             return true
         } catch {
@@ -161,12 +163,20 @@ final class S0: ObservableObject {
     func sv(_ r: R0, _ p: String, _ t: String) async -> Bool {
         bs = true
         defer { bs = false }
+        er = nil
+        let dd = Data(t.utf8)
         do {
-            try await N0.s.change(r.o, r.n, r.br, p, Data(t.utf8), "ZEPHYS edit " + (p as NSString).lastPathComponent)
-            await tree(r, true)
+            try await N0.s.change(r.o, r.n, r.br, p, dd, "ZEPHYS edit " + (p as NSString).lastPathComponent)
+            if var c = tr[r.key], let i = c.firstIndex(where: { $0.p == p }) {
+                c[i] = F0(p: p, s: dd.count)
+                tr[r.key] = c
+            } else {
+                await tree(r, true)
+            }
+            inf = "đã lưu code · \(p)"
             return true
         } catch {
-            er = (error as? GE)?.m ?? error.localizedDescription
+            er = "save thất bại: " + ((error as? GE)?.m ?? error.localizedDescription)
             return false
         }
     }
@@ -177,6 +187,7 @@ final class S0: ObservableObject {
         if hit.isEmpty { return }
         bs = true
         defer { bs = false }
+        inf = "đang đổi tên \(hit.count) file"
         for x in hit {
             guard let d = await rd(r, x.p) else { continue }
             let np = x.p == f ? t : t + String(x.p.dropFirst(f.count))
@@ -224,6 +235,7 @@ final class S0: ObservableObject {
         if files.isEmpty { er = "no readable file found"; return }
         dx = DX(kd: H0.kd(files), fl: files, frm: tag)
         nm = H0.sl(tag)
+        inf = "đã đọc \(files.count) file · sẵn sàng đăng"
     }
 
     func drop2(_ us: [URL]) {
@@ -255,6 +267,8 @@ final class S0: ObservableObject {
             er = "không đọc được: " + bad.joined(separator: ", ")
         } else if n == 0 {
             er = "không có file nào được thêm"
+        } else {
+            inf = "đã thêm \(n) file · bấm UPDATE để push"
         }
     }
 

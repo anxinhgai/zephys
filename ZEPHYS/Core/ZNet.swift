@@ -205,11 +205,16 @@ final class N0 {
     }
 
     func change(_ o: String, _ n: String, _ br: String, _ p: String, _ d: Data, _ msg: String) async throws {
-        var body: [String: Any] = ["message": msg, "content": d.base64EncodedString(), "branch": br]
-        if let old = try? await rq("/repos/\(o)/\(n)/contents/\(en(p))?ref=\(br)"),
-           let c = try? jd.decode(JC.self, from: old) {
-            body["sha"] = c.sha
+        var last: Error?
+        for i in 0..<3 {
+            do {
+                try await cm(o, n, br, msg, [(p, Optional(d))])
+                return
+            } catch {
+                last = error
+                if i < 2 { try? await Task.sleep(nanoseconds: 800_000_000) }
+            }
         }
-        _ = try await rq("/repos/\(o)/\(n)/contents/\(en(p))", "PUT", body)
+        throw last ?? GE(m: "commit failed")
     }
 }

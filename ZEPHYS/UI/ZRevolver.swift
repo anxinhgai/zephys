@@ -1,116 +1,203 @@
 import SwiftUI
+import AVFoundation
 
-struct RV: Shape {
-    func path(in r: CGRect) -> Path {
-        var p = Path()
-        let w = r.width
-        let h = r.height
-        p.addRoundedRect(in: CGRect(x: w * 0.36, y: h * 0.31, width: w * 0.62, height: h * 0.155),
-                         cornerSize: CGSize(width: h * 0.05, height: h * 0.05))
-        p.addRoundedRect(in: CGRect(x: w * 0.27, y: h * 0.245, width: w * 0.71, height: h * 0.075),
-                         cornerSize: CGSize(width: h * 0.03, height: h * 0.03))
-        p.addEllipse(in: CGRect(x: w * 0.215, y: h * 0.285, width: w * 0.25, height: h * 0.315))
-        p.move(to: CGPoint(x: w * 0.105, y: h * 0.30))
-        p.addLine(to: CGPoint(x: w * 0.34, y: h * 0.30))
-        p.addLine(to: CGPoint(x: w * 0.34, y: h * 0.53))
-        p.addLine(to: CGPoint(x: w * 0.175, y: h * 0.615))
-        p.closeSubpath()
-        p.move(to: CGPoint(x: w * 0.145, y: h * 0.355))
-        p.addLine(to: CGPoint(x: w * 0.255, y: h * 0.465))
-        p.addLine(to: CGPoint(x: w * 0.135, y: h * 0.905))
-        p.addLine(to: CGPoint(x: w * 0.015, y: h * 0.815))
-        p.closeSubpath()
-        p.addRoundedRect(in: CGRect(x: w * 0.115, y: h * 0.205, width: h * 0.075, height: h * 0.075),
-                         cornerSize: CGSize(width: 2, height: 2))
-        return p
+final class SND {
+    static let s = SND()
+    private var p: AVAudioPlayer?
+    private var ok = false
+
+    func load() {
+        guard !ok else { return }
+        let a = AVAudioSession.sharedInstance()
+        try? a.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+        try? a.setActive(true)
+        guard let u = Bundle.main.url(forResource: "shot", withExtension: "wav") else { return }
+        p = try? AVAudioPlayer(contentsOf: u)
+        p?.prepareToPlay()
+        ok = p != nil
+    }
+
+    func fire() {
+        guard ok, let p = p else { return }
+        p.currentTime = 0
+        p.play()
     }
 }
 
-struct RG: Shape {
-    func path(in r: CGRect) -> Path {
-        var p = Path()
-        let w = r.width
-        let h = r.height
-        p.addEllipse(in: CGRect(x: w * 0.02, y: h * 0.30, width: w * 0.20, height: h * 0.26))
-        p.move(to: CGPoint(x: w * 0.42, y: h * 0.40))
-        p.addLine(to: CGPoint(x: w * 0.99, y: h * 0.40))
-        return p
-    }
-}
+struct GUN: View {
+    var rec: CGFloat
+    var rot: Double
+    var fl: CGFloat
+    var fy: CGFloat
 
-struct FZ: Shape {
-    func path(in r: CGRect) -> Path {
-        var p = Path()
-        let c = CGPoint(x: r.midX, y: r.midY)
-        let n = 7
-        for i in 0..<(n * 2) {
-            let ang: CGFloat = CGFloat(i) * .pi / CGFloat(n)
-            let rad: CGFloat = (i % 2 == 0) ? r.width * 0.5 : r.width * 0.17
-            let pt = CGPoint(x: c.x + cos(ang) * rad, y: c.y + sin(ang) * rad)
-            if i == 0 { p.move(to: pt) } else { p.addLine(to: pt) }
+    var body: some View {
+        Canvas { c, sz in
+            let W = sz.width
+            let H = sz.height
+            let ax = H * 0.40
+            let mx = W * 0.985
+            let cx = W * 0.300
+            let cr = W * 0.090
+
+            var g = c
+            g.translateBy(x: -rec * W * 0.030, y: 0)
+            let base = CGPoint(x: W * 0.17, y: ax + W * 0.26)
+            g.translateBy(x: base.x, y: base.y)
+            g.rotate(by: .degrees(Double(-rec * 2.2)))
+            g.translateBy(x: -base.x, y: -base.y)
+
+            let steel = GraphicsContext.Shading.linearGradient(
+                Gradient(colors: [Color(white: 0.97), Color(white: 0.80), Color(white: 0.66)]),
+                startPoint: CGPoint(x: 0, y: ax - W * 0.11),
+                endPoint: CGPoint(x: 0, y: ax + W * 0.10))
+
+            func rect(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat, _ r: CGFloat) {
+                g.fill(Path(roundedRect: CGRect(x: x, y: y, width: w, height: h),
+                            cornerRadius: r), with: steel)
+            }
+
+            var grip = Path()
+            grip.move(to: CGPoint(x: W * 0.245, y: ax + W * 0.010))
+            grip.addLine(to: CGPoint(x: W * 0.318, y: ax + W * 0.060))
+            grip.addCurve(to: CGPoint(x: W * 0.250, y: ax + W * 0.300),
+                          control1: CGPoint(x: W * 0.330, y: ax + W * 0.170),
+                          control2: CGPoint(x: W * 0.300, y: ax + W * 0.255))
+            grip.addCurve(to: CGPoint(x: W * 0.128, y: ax + W * 0.258),
+                          control1: CGPoint(x: W * 0.215, y: ax + W * 0.300),
+                          control2: CGPoint(x: W * 0.160, y: ax + W * 0.286))
+            grip.addCurve(to: CGPoint(x: W * 0.152, y: ax + W * 0.052),
+                          control1: CGPoint(x: W * 0.108, y: ax + W * 0.190),
+                          control2: CGPoint(x: W * 0.132, y: ax + W * 0.110))
+            grip.closeSubpath()
+            g.fill(grip, with: steel)
+
+            var frame = Path()
+            frame.move(to: CGPoint(x: W * 0.222, y: ax - W * 0.052))
+            frame.addLine(to: CGPoint(x: W * 0.382, y: ax - W * 0.040))
+            frame.addLine(to: CGPoint(x: W * 0.382, y: ax + W * 0.030))
+            frame.addLine(to: CGPoint(x: W * 0.242, y: ax + W * 0.052))
+            frame.closeSubpath()
+            g.fill(frame, with: steel)
+
+            var ham = Path()
+            ham.move(to: CGPoint(x: W * 0.212, y: ax - W * 0.048))
+            ham.addLine(to: CGPoint(x: W * 0.238, y: ax - W * 0.104))
+            ham.addLine(to: CGPoint(x: W * 0.272, y: ax - W * 0.092))
+            ham.addLine(to: CGPoint(x: W * 0.268, y: ax - W * 0.030))
+            ham.closeSubpath()
+            g.fill(ham, with: steel)
+
+            g.fill(Path(ellipseIn: CGRect(x: cx - cr, y: ax - cr, width: cr * 2, height: cr * 2)),
+                   with: steel)
+
+            let dark = GraphicsContext.Shading.color(Color(red: 0.05, green: 0.06, blue: 0.09))
+            for i in 0..<6 {
+                let a = Double(i) * .pi / 3 + rot * .pi / 180
+                let px = cx + CGFloat(cos(a)) * cr * 0.50
+                let py = ax + CGFloat(sin(a)) * cr * 0.50
+                let r2 = cr * 0.255
+                g.fill(Path(ellipseIn: CGRect(x: px - r2, y: py - r2, width: r2 * 2, height: r2 * 2)),
+                       with: dark)
+            }
+            g.stroke(Path(ellipseIn: CGRect(x: cx - cr * 0.62, y: ax - cr * 0.62,
+                                            width: cr * 1.24, height: cr * 1.24)),
+                     with: .color(Color(white: 0.45).opacity(0.55)), lineWidth: W * 0.004)
+
+            rect(W * 0.330, ax - W * 0.048, mx - W * 0.330, W * 0.030, W * 0.006)
+            rect(W * 0.330, ax - W * 0.030, mx - W * 0.330, W * 0.058, W * 0.008)
+            rect(W * 0.400, ax + W * 0.028, W * 0.585, W * 0.034, W * 0.008)
+            rect(W * 0.412, ax + W * 0.036, W * 0.545, W * 0.010, W * 0.004)
+
+            var fsight = Path()
+            fsight.move(to: CGPoint(x: W * 0.935, y: ax - W * 0.048))
+            fsight.addLine(to: CGPoint(x: W * 0.958, y: ax - W * 0.086))
+            fsight.addLine(to: CGPoint(x: W * 0.972, y: ax - W * 0.048))
+            fsight.closeSubpath()
+            g.fill(fsight, with: steel)
+
+            g.stroke(Path(ellipseIn: CGRect(x: W * 0.168, y: ax + W * 0.030,
+                                            width: W * 0.128, height: W * 0.100)),
+                     with: .color(Color(white: 0.88)), lineWidth: W * 0.013)
+
+            var trg = Path()
+            trg.move(to: CGPoint(x: W * 0.222, y: ax + W * 0.026))
+            trg.addCurve(to: CGPoint(x: W * 0.214, y: ax + W * 0.086),
+                         control1: CGPoint(x: W * 0.205, y: ax + W * 0.044),
+                         control2: CGPoint(x: W * 0.198, y: ax + W * 0.070))
+            g.stroke(trg, with: .color(Color(white: 0.82)), lineWidth: W * 0.010)
+
+            g.fill(Path(ellipseIn: CGRect(x: mx - W * 0.012, y: ax - W * 0.014,
+                                          width: W * 0.024, height: W * 0.028)), with: dark)
+
+            g.fill(Path(ellipseIn: CGRect(x: W * 0.196, y: ax + W * 0.150,
+                                          width: W * 0.030, height: W * 0.030)),
+                   with: .color(Color(red: 0.10, green: 0.12, blue: 0.16)))
+
+            if fy > 0.001 && fy < 0.985 {
+                var tr = Path()
+                let bl = W * 0.42 * fy
+                tr.addRoundedRect(in: CGRect(x: mx - bl, y: ax - W * 0.006, width: bl, height: W * 0.012),
+                                  cornerRadius: W * 0.006)
+                c.fill(tr, with: .linearGradient(
+                    Gradient(colors: [Color(red: 0.98, green: 0.70, blue: 0.30).opacity(0),
+                                      Color(red: 0.98, green: 0.70, blue: 0.30).opacity(0.45)]),
+                    startPoint: CGPoint(x: mx - bl, y: ax),
+                    endPoint: CGPoint(x: mx, y: ax)))
+
+                let bx = mx + W * 0.90 * fy
+                var b = Path()
+                b.addRoundedRect(in: CGRect(x: bx, y: ax - W * 0.013, width: W * 0.040, height: W * 0.026),
+                                 cornerRadius: W * 0.013)
+                c.fill(b, with: .color(Color(red: 0.98, green: 0.72, blue: 0.34)))
+                c.fill(Path(ellipseIn: CGRect(x: bx + W * 0.026, y: ax - W * 0.013,
+                                              width: W * 0.026, height: W * 0.026)),
+                       with: .color(Color(red: 1.0, green: 0.86, blue: 0.55)))
+            }
+
+            if fl > 0.01 {
+                let R = W * (0.10 + 0.12 * fl)
+                var star = Path()
+                let n = 9
+                for i in 0..<(n * 2) {
+                    let a = Double(i) * .pi / Double(n)
+                    let rad = (i % 2 == 0) ? R : R * 0.30
+                    let pt = CGPoint(x: mx + CGFloat(cos(a)) * rad, y: ax + CGFloat(sin(a)) * rad)
+                    if i == 0 { star.move(to: pt) } else { star.addLine(to: pt) }
+                }
+                star.closeSubpath()
+                c.fill(star, with: .radialGradient(
+                    Gradient(colors: [Color(red: 1, green: 0.98, blue: 0.85).opacity(Double(fl)),
+                                      Color(red: 0.98, green: 0.62, blue: 0.22).opacity(Double(fl) * 0.75),
+                                      Color(red: 0.95, green: 0.40, blue: 0.12).opacity(0)]),
+                    center: CGPoint(x: mx, y: ax), startRadius: 0, endRadius: R))
+                c.fill(Path(ellipseIn: CGRect(x: mx - W * 0.035, y: ax - W * 0.035,
+                                              width: W * 0.070, height: W * 0.070)),
+                       with: .color(Color.white.opacity(Double(fl) * 0.85)))
+            }
         }
-        p.closeSubpath()
-        return p
     }
 }
 
 struct V8: View {
     var tx = "preparing"
+    @AppStorage("zpsnd") private var snd = true
     @State private var fy: CGFloat = 0
     @State private var rc: CGFloat = 0
     @State private var fl: CGFloat = 0
-    @State private var cy: Double = 0
+    @State private var rot: Double = 0
     @State private var bar: CGFloat = 0
+    @State private var shotCount = 0
 
     var body: some View {
         GeometryReader { g in
-            let w = min(g.size.width * 0.74, 330)
-            VStack(spacing: 30) {
+            let w = min(g.size.width * 0.92, 360)
+            VStack(spacing: 26) {
                 Spacer()
-                ZStack {
-                    RV()
-                        .fill(LinearGradient(colors: [.white.opacity(0.97), .white.opacity(0.70)],
-                                             startPoint: .top, endPoint: .bottom))
-                        .frame(width: w, height: w * 0.62)
-                        .offset(x: -rc * 9)
-                        .shadow(color: .black.opacity(0.55), radius: 22, y: 12)
-                    RG()
-                        .stroke(Color.white.opacity(0.55), lineWidth: 2)
-                        .frame(width: w, height: w * 0.62)
-                        .offset(x: -rc * 9)
-                    ZStack {
-                        ForEach(0..<6, id: \.self) { i in
-                            Circle()
-                                .fill(Color.black.opacity(0.55))
-                                .frame(width: w * 0.052, height: w * 0.052)
-                                .offset(y: -w * 0.062)
-                                .rotationEffect(.degrees(Double(i) * 60))
-                        }
-                    }
-                    .rotationEffect(.degrees(cy))
-                    .offset(x: -w * 0.155 + -rc * 9, y: w * 0.13)
-                    FZ()
-                        .fill(T0.wr)
-                        .frame(width: w * 0.34, height: w * 0.34)
-                        .offset(x: w * 0.50, y: -w * 0.02)
-                        .scaleEffect(0.5 + fl * 0.7)
-                        .opacity(Double(fl) * 0.95)
-                        .blur(radius: 1)
-                    Capsule()
-                        .fill(LinearGradient(colors: [T0.wr.opacity(0), T0.wr.opacity(0.5)],
-                                             startPoint: .leading, endPoint: .trailing))
-                        .frame(width: w * 0.45 * fy, height: 2)
-                        .offset(x: w * 0.55 + w * 0.225 * fy)
-                    Capsule()
-                        .fill(T0.wr)
-                        .frame(width: 21, height: 6.5)
-                        .offset(x: w * 0.58 + w * 0.95 * fy, y: -w * 0.02)
-                        .opacity(fy > 0.001 && fy < 0.985 ? 1 : 0)
-                        .shadow(color: T0.wr.opacity(0.85), radius: 10)
-                }
-                .frame(height: w * 0.72)
+                GUN(rec: rc, rot: rot, fl: fl, fy: fy)
+                    .frame(width: w, height: w * 0.52)
+                    .shadow(color: .black.opacity(0.55), radius: 18, y: 12)
 
-                VStack(spacing: 13) {
+                VStack(spacing: 14) {
                     Text("ZEPHYS")
                         .font(.system(size: 22, weight: .heavy))
                         .kerning(10)
@@ -119,10 +206,24 @@ struct V8: View {
                         .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                         .kerning(2.8)
                         .foregroundStyle(T0.dim)
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Color.white.opacity(0.08)).frame(width: 140, height: 2)
-                        Capsule().fill(T0.acc).frame(width: 140 * bar, height: 2)
-                            .shadow(color: T0.acc.opacity(0.6), radius: 6)
+
+                    VStack(spacing: 7) {
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.07)).frame(width: 176, height: 3)
+                            Capsule()
+                                .fill(LinearGradient(colors: [T0.acc, T0.ok],
+                                                     startPoint: .leading, endPoint: .trailing))
+                                .frame(width: 176 * bar, height: 3)
+                                .shadow(color: T0.acc.opacity(0.55), radius: 7)
+                        }
+                        HStack(spacing: 3) {
+                            ForEach(0..<6, id: \.self) { i in
+                                Capsule()
+                                    .fill(Double(i) < (Double(shotCount) * 0.7).truncatingRemainder(dividingBy: 6.0) ? T0.ok : Color.white.opacity(0.13))
+                                    .frame(width: 12, height: 2)
+                            }
+                        }
+                        .opacity(0.9)
                     }
                 }
                 Spacer()
@@ -134,22 +235,25 @@ struct V8: View {
     }
 
     private func loop() async {
-        withAnimation(.easeInOut(duration: 1.6)) { bar = 0.94 }
+        SND.s.load()
+        withAnimation(.easeInOut(duration: 1.8)) { bar = 0.95 }
         while !Task.isCancelled {
-            withAnimation(.easeOut(duration: 0.07)) {
+            withAnimation(.easeOut(duration: 0.06)) {
                 fl = 1
                 rc = 1
             }
-            withAnimation(.easeOut(duration: 0.52)) { fy = 1 }
-            withAnimation(.spring(response: 0.34, dampingFraction: 0.55)) { cy += 62 }
+            if snd { SND.s.fire() }
+            shotCount += 1
+            withAnimation(.easeOut(duration: 0.55)) { fy = 1 }
+            withAnimation(.spring(response: 0.36, dampingFraction: 0.6)) { rot += 60 }
             try? await Task.sleep(nanoseconds: 95_000_000)
-            withAnimation(.easeOut(duration: 0.24)) {
+            withAnimation(.easeOut(duration: 0.26)) {
                 fl = 0
                 rc = 0
             }
-            try? await Task.sleep(nanoseconds: 700_000_000)
+            try? await Task.sleep(nanoseconds: 780_000_000)
             fy = 0
-            try? await Task.sleep(nanoseconds: 70_000_000)
+            try? await Task.sleep(nanoseconds: 60_000_000)
         }
     }
 }

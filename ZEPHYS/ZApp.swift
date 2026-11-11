@@ -111,12 +111,17 @@ struct V0: View {
 struct V1: View {
     @StateObject private var s = S0.s
     @State private var tab = 0
+    @AppStorage("zpsnd") private var snd = true
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .center) {
                 WM(s: s.lg.isEmpty ? "console" : s.lg)
                 Spacer()
+                GB(t: snd ? "vol" : "mute", c: snd ? T0.acc : T0.dim) {
+                    snd.toggle()
+                    UISelectionFeedbackGenerator().selectionChanged()
+                }
                 GB(t: "sync") {
                     Task { await s.load() }
                 }
@@ -286,6 +291,7 @@ struct V2: View {
                         .padding(.top, 2)
                     }
                     .scrollIndicators(.visible)
+                    .refreshable { await s.load() }
                 }
                 .transition(.opacity)
             }

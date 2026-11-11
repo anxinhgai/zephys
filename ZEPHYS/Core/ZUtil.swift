@@ -40,6 +40,12 @@ enum H0 {
         ige.contains((p as NSString).pathExtension.lowercased())
     }
 
+    static let iae: Set<String> = ["mp3", "m4a", "wav", "caf", "aac", "aiff", "aif", "flac", "opus", "ogg", "amr"]
+
+    static func aud(_ p: String) -> Bool {
+        iae.contains((p as NSString).pathExtension.lowercased())
+    }
+
     static func ib() -> URL {
         let d = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
